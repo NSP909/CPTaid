@@ -1,5 +1,9 @@
 from flask import Flask, request, jsonify
 import requests
+from faster_whisper import WhisperModel
+
+model_size = "medium"
+model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 
 app = Flask(__name__)
 
@@ -14,6 +18,18 @@ def query_prices():
         answer = answer.json()
         dict[procedure] =  float(answer['rows'][0]['price']) - float(procedure_json['procedures'][procedure])
     return jsonify(dict)
+
+@app.route('/process-audio', methods=['POST'])
+def process_audio():
+    request.files['audio'].save("audio.mp3")
+
+    # Use FasterWhisper to convert audio to text
+    segments, info = model.transcribe("audio.mp3", beam_size=5)
+    final_text = ""
+    for segment in segments:
+        final_text += segment.text
+
+    return final_text
 
 if __name__ == '__main__':
     app.run(debug = True)
